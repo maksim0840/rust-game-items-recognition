@@ -1,0 +1,9 @@
+/.ipynb_checkpoints
+/venv
+
+/research/lightning_logs/**
+/research/model/**
+/research/source/**
+
+/app/model/**
+/app/source/**
