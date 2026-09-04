@@ -1,13 +1,12 @@
 import json
-import os
 from PIL import Image
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
+from paths import ITEMS_IMAGES_DIR, MODEL_DIR
 
-ITEMS_IMGS_DIR = os.path.join(APP_DIR, "source", "items")
+ITEMS_IMGS_DIR = ITEMS_IMAGES_DIR
 ITEM_IMG_EXT = "png"
 
-MODEL_INFO_DIR = os.path.join(APP_DIR, "model")
+MODEL_INFO_DIR = MODEL_DIR
 MODEL_CLASS_MAPPING = "class_mapping.json"
 
 ALL_CATEGORY = "All"

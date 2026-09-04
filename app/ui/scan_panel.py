@@ -1,6 +1,6 @@
 from PyQt5.QtCore import QEvent, Qt, pyqtSignal
 
-from global_hotkeys import GlobalHotkeys
+from system.global_hotkeys import GlobalHotkeys
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWidgets import (
     QApplication,

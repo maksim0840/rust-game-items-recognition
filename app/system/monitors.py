@@ -17,7 +17,7 @@ import sys
 
 from PyQt5.QtWidgets import QApplication
 
-from screen_capture import display_mode
+from system.screen_capture import display_mode
 
 IS_WINDOWS = sys.platform == "win32"
 

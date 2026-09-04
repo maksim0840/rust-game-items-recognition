@@ -1,7 +1,12 @@
+import time
+
 from PIL import Image
 
 from PyQt5.QtCore import QPoint, QRect, QSize, QTimer, Qt, pyqtSignal
 from PyQt5.QtGui import QFont, QFontMetrics, QImage, QPixmap
+from ui.dialogs import show_warning
+from ui.spinner import LoadingSpinner
+
 from PyQt5.QtWidgets import (
     QAbstractButton,
     QButtonGroup,
@@ -11,7 +16,6 @@ from PyQt5.QtWidgets import (
     QLabel,
     QLayout,
     QLineEdit,
-    QMessageBox,
     QPushButton,
     QScrollArea,
     QSizePolicy,
@@ -29,6 +33,12 @@ CHECK_SIZE = 26
 
 # Ширина боковых элементов верхней панели: кнопка настроек и поиск
 SIDE_WIDTH = 180
+
+# Сколько времени за раз тратим на иконки, прежде чем вернуть управление
+# интерфейсу. 40 мс — незаметно для глаза, но крутилка успевает крутиться
+ICON_CHUNK_SECONDS = 0.04
+# Задержка перед показом крутилки: короткие загрузки не должны моргать
+SPINNER_DELAY_MS = 120
 
 # Иконки подгружаются лениво: 512x512 RGBA * 1200 предметов не помещаются в память,
 # поэтому декодируем только то, что реально попало в видимую область.
@@ -489,6 +499,20 @@ class ItemsBrowser(QWidget):
         self._icon_timer.setSingleShot(True)
         self._icon_timer.setInterval(30)
         self._icon_timer.timeout.connect(self._load_visible_icons)
+
+        # Очередь иконок разбирается порциями: между порциями управление
+        # возвращается интерфейсу, поэтому окно отвечает и крутилка крутится
+        self._icon_queue = []
+        self._icon_chunk_timer = QTimer(self)
+        self._icon_chunk_timer.setSingleShot(True)
+        self._icon_chunk_timer.setInterval(0)
+        self._icon_chunk_timer.timeout.connect(self._process_icon_queue)
+
+        self.spinner = LoadingSpinner(self, "Загрузка иконок…")
+        self._spinner_delay_timer = QTimer(self)
+        self._spinner_delay_timer.setSingleShot(True)
+        self._spinner_delay_timer.setInterval(SPINNER_DELAY_MS)
+        self._spinner_delay_timer.timeout.connect(self._show_spinner)
         self.scroll_area.verticalScrollBar().valueChanged.connect(
             lambda _: self._icon_timer.start()
         )
@@ -530,7 +554,13 @@ class ItemsBrowser(QWidget):
         query = self.search_edit.text().strip().lower()
         category = self._current_category
 
+        # Контейнер прячем на время перебора: пока родитель скрыт, Qt копит
+        # изменения видимости детей и разбирает их одним проходом при показе.
+        # Иначе каждый из 1210 вызовов setVisible тянет за собой перерасчёт
+        # раскладки — переключение на "All" занимало 2.5 секунды вместо 30 мс
         self.grid.setUpdatesEnabled(False)
+        self.grid.hide()
+
         visible = []
         for card in self._cards:
             matches = (category == ALL_CATEGORY or card.category == category) and (
@@ -543,6 +573,7 @@ class ItemsBrowser(QWidget):
 
         self.grid.flow.invalidate()
         self.grid.refresh_height()
+        self.grid.show()
         self.grid.setUpdatesEnabled(True)
 
         # Набор показанных предметов сменился — квадратик пересчитываем под него
@@ -558,22 +589,62 @@ class ItemsBrowser(QWidget):
     # --- ленивая загрузка иконок ----------------------------------------------
 
     def _load_visible_icons(self):
+        """Собирает очередь иконок к загрузке и запускает её порциями."""
         if not self._visible_cards:
+            self._finish_icon_queue()
             return
+
         viewport = self.scroll_area.viewport()
         top = self.scroll_area.verticalScrollBar().value()
         # С запасом на экран вперёд и назад, чтобы при скролле не мигали пустые карточки
         window = QRect(0, top - viewport.height(), viewport.width(), viewport.height() * 3)
-        for card in self._visible_cards:
-            if card.icon_loaded:
-                continue
-            if window.intersects(card.geometry()):
-                card.load_icon()
+
+        self._icon_queue = [
+            card for card in self._visible_cards
+            if not card.icon_loaded and window.intersects(card.geometry())
+        ]
+        if not self._icon_queue:
+            self._finish_icon_queue()
+            return
+
+        # Крутилку показываем не сразу: короткая загрузка не должна моргать
+        if not self.spinner.isVisible():
+            self._spinner_delay_timer.start()
+        self._process_icon_queue()
+
+    def _process_icon_queue(self):
+        """Готовит иконки порциями, отдавая управление событийному циклу.
+
+        Одна иконка стоит около 7 мс, а целый экран — до 200 мс. Если сделать
+        всё разом, окно замрёт и крутилка не сдвинется с места: анимации тоже
+        нужен свободный событийный цикл.
+        """
+        deadline = time.monotonic() + ICON_CHUNK_SECONDS
+        while self._icon_queue and time.monotonic() < deadline:
+            self._icon_queue.pop(0).load_icon()
+
+        if self._icon_queue:
+            self._icon_chunk_timer.start()   # продолжим на следующем обороте цикла
+        else:
+            self._finish_icon_queue()
+
+    def _finish_icon_queue(self):
+        self._icon_queue = []
+        self._spinner_delay_timer.stop()
+        self.spinner.stop()
+
+    def _show_spinner(self):
+        if not self._icon_queue:
+            return
+        self.spinner.center_on(self.scroll_area.geometry())
+        self.spinner.start()
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
         self.grid.refresh_height()
         self._icon_timer.start()
+        if self.spinner.isVisible():
+            self.spinner.center_on(self.scroll_area.geometry())
 
     def showEvent(self, event):
         super().showEvent(event)
@@ -606,18 +677,12 @@ class ItemsBrowser(QWidget):
     def _on_select_clicked(self):
         """Пускает к распознаванию только если есть что искать."""
         if not any(card.is_selected for card in self._cards):
-            message = QMessageBox(self)
-            message.setObjectName("appMessage")
-            message.setIcon(QMessageBox.Warning)
-            message.setWindowTitle("Предметы не выбраны")
-            message.setText("Не выбрано ни одного предмета.")
-            message.setInformativeText(
+            show_warning(
+                self, "Предметы не выбраны",
+                "Не выбрано ни одного предмета.",
                 "Отметьте хотя бы один предмет, который нужно искать: "
-                "нажмите на карточку, чтобы поставить галочку."
+                "нажмите на карточку, чтобы поставить галочку.",
             )
-            message.setStandardButtons(QMessageBox.Ok)
-            message.button(QMessageBox.Ok).setText("Понятно")
-            message.exec_()
             return
 
         self.select_requested.emit()

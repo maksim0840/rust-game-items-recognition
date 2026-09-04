@@ -7,11 +7,12 @@ from PIL import Image
 from PyQt5.QtGui import QImage
 from PyQt5.QtWidgets import QApplication
 
-from monitors import QtMonitors
-from screen_capture import capture_monitor
+from system.monitors import QtMonitors
+from system.screen_capture import capture_monitor
 
-APP_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_INFO_DIR = os.path.join(APP_DIR, "model")
+from paths import MODEL_DIR
+
+MODEL_INFO_DIR = MODEL_DIR
 
 # centroids.pt — это архив torch, numpy читает его как NpzFile: нужен .npy
 MODEL_CENTROIDS = "centroids.npy"

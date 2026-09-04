@@ -8,3 +8,9 @@
 /app/model/**
 /app/source/**
 /app/__pycache__
+
+# сборка .exe: сам спек — часть проекта и должен попадать в репозиторий,
+# а его результаты — нет
+/app/build/
+/app/dist/
+/app/LootLens.exe

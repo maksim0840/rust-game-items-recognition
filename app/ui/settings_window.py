@@ -12,7 +12,8 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
 )
 
-from monitors import QtMonitors
+from system.monitors import QtMonitors
+from system.window_theme import apply_dark_title_bar
 
 UI_SCALE_MIN = 0.50
 UI_SCALE_MAX = 1.00
@@ -59,7 +60,7 @@ class SettingsDialog(QDialog):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Настройки Rust")
+        self.setWindowTitle("LootLens — настройки")
         self.setObjectName("settingsDialog")
         self.setModal(True)
 
@@ -231,6 +232,11 @@ class SettingsDialog(QDialog):
         if screen is not None:
             self.width_spin.setValue(screen["width"])
             self.height_spin.setValue(screen["height"])
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        # Рамку с кнопками рисует Windows, и по умолчанию она светлая
+        apply_dark_title_bar(self)
 
     def _field_label(self, text):
         label = QLabel(text, self)

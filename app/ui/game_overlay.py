@@ -15,7 +15,7 @@ from PyQt5.QtCore import QRect, Qt, QTimer
 from PyQt5.QtGui import QBrush, QColor, QPainter, QPen
 from PyQt5.QtWidgets import QApplication, QWidget
 
-from screen_capture import display_mode
+from system.screen_capture import display_mode
 
 IS_WINDOWS = sys.platform == "win32"
 
@@ -50,10 +50,12 @@ BORDER_WIDTH = 2
 class GameOverlay(QWidget):
     """Полноэкранное прозрачное окно поверх игры."""
 
-    def __init__(self, screen=None, parent=None):
+    def __init__(self, screen=None, parent=None, hide_from_capture=True):
+        """hide_from_capture=False делает квадраты видимыми для записи экрана."""
         super().__init__(parent)
         self.setObjectName("gameOverlay")
 
+        self._hide_from_capture = hide_from_capture
         self._screen = screen
         self._boxes = {"matched": [], "undefined": [], "not_matched": []}
         self._visible_groups = {"matched": True, "undefined": True, "not_matched": True}
@@ -194,12 +196,34 @@ class GameOverlay(QWidget):
                 hwnd, GWL_EXSTYLE, style | WS_EX_NOACTIVATE
             )
 
+    def set_hide_from_capture(self, enabled):
+        """Переключает невидимость для записи экрана прямо на ходу."""
+        if enabled == self._hide_from_capture:
+            return
+        self._hide_from_capture = enabled
+        self._capture_excluded = False
+        if self.isVisible():
+            self._exclude_from_capture()
+
     def _exclude_from_capture(self):
-        """Прячет окно от скриншотов, оставляя видимым на экране."""
-        if not IS_WINDOWS or self._capture_excluded:
+        """Прячет окно от скриншотов, оставляя видимым на экране.
+
+        Нужно, чтобы наши же квадраты не попали в следующий снимок и модель
+        не пыталась их распознать. Обратная сторона: окно не видно ни в OBS,
+        ни на скриншотах — для записи ролика защиту надо снять.
+        """
+        if not IS_WINDOWS:
             return
         hwnd = self._hwnd()
         set_affinity = ctypes.windll.user32.SetWindowDisplayAffinity
+
+        if not self._hide_from_capture:
+            set_affinity(hwnd, WDA_NONE)
+            self._capture_excluded = False
+            return
+
+        if self._capture_excluded:
+            return
         if set_affinity(hwnd, WDA_EXCLUDEFROMCAPTURE):
             self._capture_excluded = True
         elif set_affinity(hwnd, WDA_MONITOR):
