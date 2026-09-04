@@ -139,7 +139,7 @@ ArcFace нужен **только на время обучения**. После
 
 ### Скачивание
 
-Модель доступна на Hugging Face: **[ссылка будет добавлена]**
+Модель доступна на Hugging Face: [модель](https://huggingface.co/maksim0840/Rust-Game-Items-Recognition/)
 
 Пакет состоит из пяти файлов:
 
