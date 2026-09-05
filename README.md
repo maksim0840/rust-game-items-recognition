@@ -3,7 +3,7 @@
 Распознавание предметов игры Rust по иконкам: обученная нейросеть и
 десктоп-приложение на её основе.
 
-Скачать программу/модель: [Releases](https://github.com/maksim0840/rust-items-detection/releases/tag/v1.0)
+Скачать программу/модель: [Releases](https://github.com/maksim0840/rust-game-items-recognition/releases/tag/v1.0)
 
 ## Программа LootLens: [app/](app#readme)
 
