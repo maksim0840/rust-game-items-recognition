@@ -4,7 +4,7 @@
 программа по горячей клавише снимает экран, распознаёт содержимое сундука
 нейросетью и подсвечивает найденные ячейки прямо поверх игры.
 
-## LootLens последняя версия: [скачать](https://github.com/maksim0840/rust-items-detection/releases/tag/v1.0)
+## LootLens последняя версия: [скачать](https://github.com/maksim0840/rust-game-items-recognition/releases/tag/v1.0)
 
 <img width="1920" height="1080" alt="2026-09-05 10-16-42 (1)" src="https://github.com/user-attachments/assets/12befd2a-fee8-4181-a3db-fc79614b2f8c" />
 
