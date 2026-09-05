@@ -23,6 +23,8 @@
 - [Как работает распознавание](#как-работает-распознавание)
 - [Особенности реализации](#особенности-реализации)
 
+## Запуск из исходников
+
 ```bash
 git clone https://github.com/maksim0840/rust-game-items-recognition.git
 cd rust-game-items-recognition
